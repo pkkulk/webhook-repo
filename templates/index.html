@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Events</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify_content: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .event-list {
+            list-style: none;
+            padding: 0;
+        }
+        .event-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            animation: fadeIn 0.5s;
+        }
+        .event-item:last-child {
+            border-bottom: none;
+        }
+        .timestamp {
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .author { font-weight: bold; color: #2980b9; }
+        .branch { font-weight: bold; color: #e67e22; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Latest GitHub Actions</h1>
+        <ul id="events" class="event-list">
+            <!-- Events will be populated here -->
+        </ul>
+    </div>
+
+    <script>
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            
+            // Format: "1st April 2021 - 9:30 PM UTC"
+            const day = date.getUTCDate();
+            const month = date.toLocaleString('default', { month: 'long', timeZone: 'UTC' });
+            const year = date.getUTCFullYear();
+            
+            let hours = date.getUTCHours();
+            const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+
+            const getOrdinal = (n) => {
+                const s = ["th", "st", "nd", "rd"];
+                const v = n % 100;
+                return n + (s[(v - 20) % 10] || s[v] || s[0]);
+            }
+
+            return `${getOrdinal(day)} ${month} ${year} - ${hours}:${minutes} ${ampm} UTC`;
+        }
+
+        function fetchEvents() {
+            fetch('/events')
+                .then(response => response.json())
+                .then(events => {
+                    const list = document.getElementById('events');
+                    list.innerHTML = '';
+                    events.forEach(event => {
+                        const li = document.createElement('li');
+                        li.className = 'event-item';
+                        
+                        let message = '';
+                        const formattedTime = formatDate(event.timestamp);
+
+                        if (event.type === 'PUSH') {
+                            message = `<span class="author">"${event.author}"</span> pushed to <span class="branch">"${event.to_branch}"</span> on ${formattedTime}`;
+                        } else if (event.type === 'PULL_REQUEST') {
+                            message = `<span class="author">"${event.author}"</span> submitted a pull request from <span class="branch">"${event.from_branch}"</span> to <span class="branch">"${event.to_branch}"</span> on ${formattedTime}`;
+                        } else if (event.type === 'MERGE') {
+                            message = `<span class="author">"${event.author}"</span> merged branch <span class="branch">"${event.from_branch}"</span> to <span class="branch">"${event.to_branch}"</span> on ${formattedTime}`;
+                        }
+
+                        li.innerHTML = message;
+                        list.appendChild(li);
+                    });
+                })
+                .catch(err => console.error('Error fetching events:', err));
+        }
+
+        // Initial fetch
+        fetchEvents();
+
+        // Poll every 15 seconds
+        setInterval(fetchEvents, 15000);
+    </script>
+</body>
+</html>
