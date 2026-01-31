@@ -2,3 +2,5 @@ flask
 pymongo
 python-dateutil
 requests
+python-dotenv
+dnspython

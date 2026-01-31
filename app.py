@@ -1,14 +1,23 @@
 from flask import Flask, request, jsonify, render_template
 from pymongo import MongoClient
 import datetime
-from dateutil import parser
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
-# MongoDB Setup
-try:
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client.webhook_db
+    # MongoDB Setup
+    mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+    client = MongoClient(mongo_uri)
+    db = client.get_database('webhook_db') if 'webhook_db' not in mongo_uri else client.get_database() 
+    
+    if client.get_default_database() is not None:
+         db = client.get_default_database()
+    else:
+         db = client.webhook_db
+
     events_collection = db.events
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
@@ -43,11 +52,6 @@ def webhook():
         record['author'] = data.get('pusher', {}).get('name', 'Unknown')
         record['to_branch'] = data.get('ref', '').split('/')[-1]
         
-        # Adjust format: "Travis" pushed to "staging" on 1st April 2021 - 9:30 PM UTC
-        # We will format on the frontend or backend. 
-        # Requirement says:
-        # Format: {author} pushed to {to_branch} on {timestamp}
-        # Sample: "Travis" pushed to "staging" on 1st April 2021 - 9:30 PM UTC
         
     # Handle Pull Request Event
     elif event_type == 'pull_request':
